@@ -3,6 +3,8 @@ Interfaz gráfica para Practica RNA - MLPs en PyTorch con FIFA 2021.
 Ejecutar con: python gui.py
 """
 
+from __future__ import annotations
+
 import io
 import os
 import subprocess
@@ -254,31 +256,33 @@ class App(tk.Tk):
         self._stop_btn.configure(state="normal")
         self._progress.start(12)
         self._status_var.set("Entrenando…")
-        self._log_line(f"$ {' '.join(args)}\n")
+        self._append_log(f"$ {' '.join(args)}\n")
+        self._append_log("[Iniciando proceso... ]\n")
 
         self._proc: subprocess.Popen | None = None
 
         def run() -> None:
             try:
+                env = os.environ.copy()
+                env["PYTHONUNBUFFERED"] = "1"
                 self._proc = subprocess.Popen(
-                    args,
+                    [args[0], "-u", *args[1:]],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,
+                    env=env,
                     cwd=os.path.dirname(os.path.abspath(__file__)),
                 )
                 assert self._proc.stdout is not None
                 for line in self._proc.stdout:
-                    self._log_line(line)
+                    self._append_log(line)
                 self._proc.wait()
                 code = self._proc.returncode
-                self._log_line(
-                    f"\n[Proceso terminado con código {code}]\n"
-                )
+                self._append_log(f"\n[Proceso terminado con código {code}]\n")
                 self.after(0, self._on_training_done, code == 0)
             except Exception as exc:
-                self._log_line(f"\n[Error: {exc}]\n")
+                self._append_log(f"\n[Error: {exc}]\n")
                 self.after(0, self._on_training_done, False)
 
         self._training_thread = threading.Thread(target=run, daemon=True)
@@ -287,7 +291,7 @@ class App(tk.Tk):
     def _stop_training(self) -> None:
         if self._proc and self._proc.poll() is None:
             self._proc.terminate()
-            self._log_line("\n[Entrenamiento interrumpido por el usuario]\n")
+            self._append_log("\n[Entrenamiento interrumpido por el usuario]\n")
             self._on_training_done(success=False)
 
     def _on_training_done(self, success: bool) -> None:
@@ -303,7 +307,7 @@ class App(tk.Tk):
     # ------------------------------------------------------------------
     def _open_tensorboard(self) -> None:
         runs_dir = self._runs_dir_var.get().strip() or "runs"
-        self._log_line(f"\n[Abriendo TensorBoard en: {runs_dir}]\n")
+        self._append_log(f"\n[Abriendo TensorBoard en: {runs_dir}]\n")
         try:
             subprocess.Popen(
                 [sys.executable, "-m", "tensorboard.main", "--logdir", runs_dir],
@@ -320,12 +324,13 @@ class App(tk.Tk):
     # ------------------------------------------------------------------
     # Utilidades de log
     # ------------------------------------------------------------------
-    def _log_line(self, text: str) -> None:
+    def _append_log(self, text: str) -> None:
         def _do() -> None:
             self._log.configure(state="normal")
             self._log.insert(tk.END, text)
             self._log.see(tk.END)
             self._log.configure(state="disabled")
+            self.update_idletasks()
 
         self.after(0, _do)
 

@@ -322,6 +322,13 @@ def train_model(
     return final_metrics
 
 
+def save_model_checkpoint(net: nn.Module, save_dir: str, filename: str) -> str:
+    os.makedirs(save_dir, exist_ok=True)
+    checkpoint_path = os.path.join(save_dir, filename)
+    torch.save(net.state_dict(), checkpoint_path)
+    return checkpoint_path
+
+
 def create_experiment_runs_dir(base_runs_dir: str) -> str:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     experiment_dir = os.path.join(base_runs_dir, timestamp)
@@ -375,6 +382,8 @@ def run_base_models(
             lr=0.001,
             tb_log_every=tb_log_every,
         )
+        checkpoint_path = save_model_checkpoint(net, model_runs_dir, "model_final.pt")
+        print(f"Modelo guardado en: {checkpoint_path}")
         row: ResultRow = {
             "modelo": model_name,
             "hidden_layers": str(hidden),
@@ -461,6 +470,8 @@ def run_competition_models(
             lr=cfg.lr,
             tb_log_every=tb_log_every,
         )
+        checkpoint_path = save_model_checkpoint(net, model_runs_dir, "model_final.pt")
+        print(f"Modelo guardado en: {checkpoint_path}")
         row: ResultRow = {
             "modelo": cfg.name,
             "hidden_layers": str(cfg.hidden),
